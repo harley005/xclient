@@ -1,8 +1,8 @@
 xclient
 =======
 
-Just work xclient compatible with H3C iNode v5.0
-Desgined for Linux based system
-Power by harl@qq.com ©2013
-usage: xclient -i interface -u user -p password [-g log_file] [-m]
--m means using multicast
+Just work xclient compatible with H3C iNode v5.0<br />
+Desgined for Linux based system<br />
+Power by harl@qq.com ©2013<br />
+usage: xclient -i interface -u user -p password [-g log_file] [-m]<br />
+-m means using multicast<br />
