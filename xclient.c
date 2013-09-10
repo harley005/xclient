@@ -8,6 +8,8 @@
 #include <signal.h>
 #include "eap.h"
 
+#define  PID_FILE  "/var/run/xclient.pid"
+
 void usage(char *name)
 {
 	printf("Just work xclient compatible with H3C iNode v5.0\n");
@@ -19,7 +21,7 @@ void usage(char *name)
 
 void xclient_exit()
 {
-	unlink("/var/run/xclient.pid");
+	unlink(PID_FILE);
 	exit(0);
 }
 
@@ -31,14 +33,20 @@ int main(int argc, char **argv)
 	char *log_file = NULL;
 	char ch;
 	int  multicast = 0;
-
-	int pid_file = open("/var/run/xclient.pid", O_RDWR|O_CREAT|O_EXCL, 0644);
+	
+	signal(SIGCHLD, SIG_IGN);
+	
+	int pid_file = open(PID_FILE, O_RDWR|O_CREAT, 0644);
 	if (pid_file < 0) {
-		printf("xclient is already running\n");
-		exit(0);
+		printf("open lock file failed\n");
+		exit(EXIT_FAILURE);
 	}
-	signal(SIGTERM, xclient_exit);
-
+	int lock_result = lockf(pid_file, F_TEST, 0);
+	if (lock_result < 0) {
+		printf("xclient is already running\n");
+		exit(EXIT_FAILURE);
+	}
+	
 	opterr = 0; //disable getopt() output
 	while ((ch = getopt(argc, argv, "i:u:p:g:m")) != -1) {
 		switch(ch) {
@@ -71,17 +79,25 @@ int main(int argc, char **argv)
 	pid_t pid = fork();
 	if (pid != 0) {
 		char p[16];
-		sprintf(p, "%d\n", pid);
-		write(pid_file, p, strlen(p));
-		close(pid_file);
+		sprintf(p, "%ld\n", (long)pid);
+		ftruncate(pid_file, 0);
+		write(pid_file, p, strlen(p) + 1);
 		exit(0);
 	}
-	close(pid_file);
 
-	if (setuid(0)!=0) {
+	//child process
+	if (setuid(0) != 0) {
 		printf("Need to be root\n");
-		exit(0);
+		exit(EXIT_FAILURE);
 	}
+	
+	lock_result = lockf(pid_file, F_LOCK, 0);
+	if (lock_result < 0) {
+		printf("lock pid file failed\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	signal(SIGTERM, xclient_exit);
 
 	setsid();
 	chdir("/");
@@ -98,14 +114,17 @@ int main(int argc, char **argv)
 	EAP *eap = eap_open(dev, user, passwd);
 	eap->multicast = multicast;
 	while(1) {
-		if (eap->retry_times > 3)
-			exit(EXIT_FAILURE);
+		if (eap->retry_times > 3) {
+			sleep(60);
+			eap->retry_times = 0;
+		}
 
 		eap_send_start(eap);
 		eap_event_loop(eap);
 		sleep(10);
 	}
-	eap_release(eap); 
+	eap_release(eap);
+	close(pid_file);
 	return 0;
 
 usage:

@@ -1,3 +1,4 @@
+#CROSS_PREFIX = arm-none-linux-gnueabi-
 CROSS_PREFIX = mipsel-linux-uclibc-
 GCC = $(CROSS_PREFIX)gcc
 STRIP = $(CROSS_PREFIX)strip
