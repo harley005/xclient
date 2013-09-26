@@ -145,7 +145,7 @@ void eap_send_md5_response(EAP *eap)
 	md5_frm->len = 16;
 	MD5_CTX md5;
 	MD5Init(&md5);
-	MD5Update(&md5, (char *)&eap->id, sizeof(eap->id));
+	MD5Update(&md5, (char *)&eap->id, sizeof(char));
 	MD5Update(&md5, eap->passwd, strlen(eap->passwd));
 	MD5Update(&md5, eap->md5_key, sizeof(eap->md5_key));
 	MD5Final(&md5);
